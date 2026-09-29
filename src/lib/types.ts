@@ -382,3 +382,165 @@ export interface SlackNotifyPayload {
   tags?: string[];
   metadata?: Record<string, any>;
 }
+
+export type CrmCategory = 'CUSTOM_DEV' | 'ATOM_PRODUCT' | 'CORPORATE_CLIENT' | 'PRODUCT_NEXUS';
+export type CrmStatus = 'NUEVO' | 'CONTACTADO' | 'RESPONDIO' | 'REUNION' | 'PROPUESTA' | 'CLIENTE' | 'DESCARTADO';
+
+export interface NexusLeadPhone {
+  raw: string;
+  formatted: string;
+  verified: boolean;
+}
+
+export interface NexusLead {
+  id: string;
+  companyName: string;
+  contactName: string;
+  taxId: string;
+  address: string;
+  city: string;
+  province: string;
+  priceList: string;
+  group: string;
+  phones: NexusLeadPhone[];
+  emails: string[];
+  status: 'nuevo' | 'contactado' | 'demo' | 'negociacion' | 'cliente' | 'descartado';
+  notes: string;
+  writtenAt?: string;
+  followUpAt?: string;
+  template?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+export interface NexusSyncResponse {
+  source: string;
+  totalCount: number;
+  filteredCount: number;
+  statusCounts: {
+    nuevo: number;
+    contactado: number;
+    demo: number;
+    negociacion: number;
+    cliente: number;
+    descartado: number;
+  };
+  leads: NexusLead[];
+}
+
+export interface UpdateNexusStatePayload {
+  id: string;
+  estado?: string;
+  notas?: string;
+  escrito?: string;
+  volver?: string;
+  plantilla?: string;
+  quien?: string;
+}
+
+export interface CrmHistoryItem {
+  id: string;
+  leadId: string;
+  authorName?: string | null;
+  action: string;
+  details?: string | null;
+  createdAt: string;
+}
+
+export interface CrmLead {
+  id: string;
+  sheetId?: string | null;
+  category: CrmCategory;
+  companyName: string;
+  contactName?: string | null;
+  taxId?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  city?: string | null;
+  province?: string | null;
+  address?: string | null;
+
+  // Custom dev
+  projectType?: string | null;
+  budgetRange?: string | null;
+  techNotes?: string | null;
+
+  // Product Nexus
+  businessType?: string | null;
+  priceList?: string | null;
+
+  status: CrmStatus;
+  assignedToId?: string | null;
+  assignedTo?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    avatar?: string | null;
+  } | null;
+  lastContactAt?: string | null;
+  nextContactAt?: string | null;
+  notes?: string | null;
+  trelloCardUrl?: string | null;
+
+  createdAt: string;
+  updatedAt: string;
+  history?: CrmHistoryItem[];
+}
+
+export interface CrmDashboardStats {
+  totals: {
+    totalLeads: number;
+    nexusCount: number;
+    devCount: number;
+    inNegotiation: number;
+    clientsWon: number;
+    globalConversionRate: string;
+    nexusConversionRate: string;
+    devConversionRate: string;
+  };
+  statusCounts: Record<CrmStatus, number>;
+  advisorRanking: Array<{
+    name: string;
+    totalAssigned: number;
+    meetings: number;
+    won: number;
+  }>;
+  staleLeads: CrmLead[];
+  recentHistory: Array<CrmHistoryItem & { lead?: { id: string; companyName: string; category: CrmCategory; status: CrmStatus } }>;
+}
+
+export interface CreateLeadPayload {
+  category: CrmCategory;
+  companyName: string;
+  contactName?: string;
+  taxId?: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  province?: string;
+  address?: string;
+  projectType?: string;
+  budgetRange?: string;
+  techNotes?: string;
+  businessType?: string;
+  priceList?: string;
+  status?: string;
+  notes?: string;
+  assignedToId?: string;
+  nextContactAt?: string;
+}
+
+export interface UpdateLeadStatusPayload {
+  status?: string;
+  notes?: string;
+  assignedToId?: string;
+  lastContactAt?: string;
+  nextContactAt?: string;
+  projectType?: string;
+  budgetRange?: string;
+  techNotes?: string;
+  businessType?: string;
+  action?: string;
+  actionDetails?: string;
+}

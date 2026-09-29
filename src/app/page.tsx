@@ -24,13 +24,14 @@ import { TeamManagementView } from '@/components/Team/TeamManagementView';
 import { GithubActivityView } from '@/components/Github/GithubActivityView';
 import { DeveloperPerformanceView } from '@/components/Github/DeveloperPerformanceView';
 import { IntegrationsHubView } from '@/components/Integrations/IntegrationsHubView';
+import { CrmHubView } from '@/components/Crm/CrmHubView';
 import { UploadModal } from '@/components/ContentBank/UploadModal';
 import { LoginPage } from '@/components/Auth/LoginPage';
 import { GithubCommit } from '@/lib/types';
-import { Database, Sparkles, Calendar, Palette, Plus, Loader2, Users, Code, Code2, ShieldCheck, TrendingUp, MessageSquare } from 'lucide-react';
+import { Database, Sparkles, Calendar, Palette, Plus, Loader2, Users, Code, Code2, ShieldCheck, TrendingUp, MessageSquare, Briefcase } from 'lucide-react';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'bank' | 'studio' | 'calendar' | 'brand' | 'team' | 'github' | 'performance' | 'integrations'>('bank');
+  const [activeTab, setActiveTab] = useState<'bank' | 'studio' | 'calendar' | 'brand' | 'team' | 'github' | 'performance' | 'integrations' | 'crm'>('bank');
 
   // Estados de datos
   const [assets, setAssets] = useState<RawAsset[]>([]);
@@ -494,6 +495,22 @@ export default function Home() {
             </span>
           </button>
 
+          {/* Pestaña de Comercial / CRM & Leads */}
+          <button
+            onClick={() => setActiveTab('crm')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all whitespace-nowrap ${
+              activeTab === 'crm'
+                ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-600 text-white shadow-md shadow-indigo-500/25 font-bold'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <Briefcase className="w-4 h-4 text-emerald-400" />
+            <span>Comercial & Leads</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              CRM
+            </span>
+          </button>
+
           {/* Pestaña de Gestión de Equipo (Exclusiva para Administrador) */}
           {isAdmin && (
             <button
@@ -581,6 +598,10 @@ export default function Home() {
 
           {activeTab === 'integrations' && (
             <IntegrationsHubView currentMember={currentMember} team={team} />
+          )}
+
+          {activeTab === 'crm' && (
+            <CrmHubView currentMember={currentMember} team={team} />
           )}
 
           {activeTab === 'brand' && (isAdmin || isMarketing) && (

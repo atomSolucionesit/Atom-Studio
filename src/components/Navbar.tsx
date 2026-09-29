@@ -338,15 +338,43 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* Cuenta de Servicio Conectada */}
+          {/* Cuenta de Servicio Conectada (Sheets & BD) */}
           {cloudStatus?.serviceAccount?.clientEmail && (
             <div className="p-3 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 text-[11px] text-zinc-400 space-y-1">
               <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
-                Cuenta de Servicio Conectada
+                Cuenta de Servicio (Google Sheets & CRM)
               </span>
               <p className="text-xs font-mono text-emerald-400 break-all">
                 {cloudStatus.serviceAccount.clientEmail}
               </p>
+            </div>
+          )}
+
+          {/* Cuenta Personal OAuth (Google Drive) */}
+          {cloudStatus?.oauth2?.userEmail && (
+            <div className="p-3 rounded-2xl bg-zinc-950/80 border border-zinc-800/80 text-[11px] text-zinc-400 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
+                  Cuenta OAuth2 (Google Drive)
+                </span>
+                {cloudStatus.oauth2.isExpired ? (
+                  <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    Token Expirado (7 días)
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Activo
+                  </span>
+                )}
+              </div>
+              <p className="text-xs font-mono text-indigo-400 break-all">
+                {cloudStatus.oauth2.userEmail}
+              </p>
+              {cloudStatus.oauth2.isExpired && (
+                <p className="text-[10px] text-zinc-500 leading-relaxed">
+                  💡 Google expira los tokens de prueba a los 7 días. Para token permanente: publica la app en Google Cloud y ejecuta <code className="text-zinc-300 font-mono">npm run google:oauth</code> en terminal.
+                </p>
+              )}
             </div>
           )}
         </div>

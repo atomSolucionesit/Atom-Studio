@@ -20,6 +20,12 @@ import {
   InternalEmailItem,
   SendEmailPayload,
   SlackNotifyPayload,
+  CrmLead,
+  CrmDashboardStats,
+  CreateLeadPayload,
+  UpdateLeadStatusPayload,
+  NexusSyncResponse,
+  UpdateNexusStatePayload,
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
@@ -253,7 +259,9 @@ export const api = {
 
   // --- Google Cloud (Drive & Sheets) ---
   async getGoogleStatus(): Promise<{
-    drive: { configured: boolean; status: string; message: string; folderId: string | null; folderName?: string };
+    serviceAccount?: { exists: boolean; clientEmail: string | null; projectId: string | null; error: string | null };
+    oauth2?: { exists: boolean; userEmail: string | null; isExpired?: boolean };
+    drive: { configured: boolean; status: string; message: string; folderId: string | null; folderName?: string; isOAuthExpired?: boolean };
     sheets: { configured: boolean; status: string; message: string; spreadsheetId: string | null; title?: string };
     isFullyConnected: boolean;
   }> {
@@ -461,6 +469,184 @@ export const api = {
     const qs = userId ? `?userId=${encodeURIComponent(userId)}` : '';
     const res = await fetch(`${API_BASE}/mail/user-emails${qs}`, { cache: 'no-store' });
     if (!res.ok) throw new Error('Error al cargar correos');
+    return res.json();
+  },
+
+  // --- CRM & Leads ---
+  async getCrmLeads(params?: { category?: string; status?: string; search?: string }): Promise<CrmLead[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.category && params.category !== 'ALL') searchParams.set('category', params.category);
+    if (params?.status && params.status !== 'ALL') searchParams.set('status', params.status);
+    if (params?.search) searchParams.set('search', params.search);
+
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    const res = await fetch(`${API_BASE}/crm/leads${qs}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Error al cargar prospectos');
+    return res.json();
+  },
+
+  async getCrmLeadById(id: string): Promise<CrmLead> {
+    const res = await fetch(`${API_BASE}/crm/leads/${id}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Error al cargar detalle del prospecto');
+    return res.json();
+  },
+
+  async createCrmLead(data: CreateLeadPayload, userName?: string): Promise<CrmLead> {
+    const res = await fetch(`${API_BASE}/crm/leads`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userName ? { 'x-user-name': userName } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Error al registrar prospecto');
+    return res.json();
+  },
+
+  async updateCrmLeadStatus(id: string, data: UpdateLeadStatusPayload, userName?: string): Promise<CrmLead> {
+    const res = await fetch(`${API_BASE}/crm/leads/${id}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userName ? { 'x-user-name': userName } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Error al actualizar prospecto');
+    return res.json();
+  },
+
+  async createCrmTrelloCard(id: string, data: { boardId?: string; listId?: string; customNotes?: string }, userName?: string): Promise<{ success: boolean; cardUrl: string; lead: CrmLead }> {
+    const res = await fetch(`${API_BASE}/crm/leads/${id}/trello-card`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userName ? { 'x-user-name': userName } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Error' }));
+      throw new Error(err.message || 'Error al crear tarjeta en Trello');
+    }
+    return res.json();
+  },
+
+  async syncCrmWithSheets(): Promise<{ configured: boolean; syncedLeads: number; message: string; error?: boolean }> {
+    const res = await fetch(`${API_BASE}/crm/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) throw new Error('Error al sincronizar con Google Sheets');
+    return res.json();
+  },
+
+  async getCrmDashboardStats(): Promise<CrmDashboardStats> {
+    const res = await fetch(`${API_BASE}/crm/dashboard-stats`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Error al cargar métricas de ventas');
+    return res.json();
+  },
+
+  async deleteCrmLead(id: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/crm/leads/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Error al eliminar prospecto');
+    return res.json();
+  },
+
+  async clearSeedLeads(): Promise<{ success: boolean; deletedCount: number; message: string }> {
+    const res = await fetch(`${API_BASE}/crm/leads/seed`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Error al eliminar prospectos precargados');
+    return res.json();
+  },
+
+  // --- CRM NEXUS (Sincronizado) ---
+  async getNexusLeads(params?: { search?: string; status?: string }): Promise<NexusSyncResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.status && params.status !== 'ALL') searchParams.set('status', params.status);
+
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    const res = await fetch(`${API_BASE}/crm/nexus/leads${qs}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Error al sincronizar prospectos de Nexus');
+    return res.json();
+  },
+
+  async updateNexusLeadState(data: UpdateNexusStatePayload, userName?: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/crm/nexus/state`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userName ? { 'x-user-name': userName } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Error al actualizar estado en Nexus');
+    return res.json();
+  },
+
+  // --- CRM DESARROLLOS, PRODUCTOS & CLIENTES ATOM ---
+  async getDevelopments(params?: { category?: string; projectType?: string; status?: string; search?: string }): Promise<CrmLead[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.category && params.category !== 'ALL') searchParams.set('category', params.category);
+    if (params?.projectType && params.projectType !== 'ALL') searchParams.set('projectType', params.projectType);
+    if (params?.status && params.status !== 'ALL') searchParams.set('status', params.status);
+    if (params?.search) searchParams.set('search', params.search);
+
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    const res = await fetch(`${API_BASE}/crm/developments${qs}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Error al cargar desarrollos');
+    return res.json();
+  },
+
+  async createDevelopment(data: CreateLeadPayload, userName?: string): Promise<CrmLead> {
+    const res = await fetch(`${API_BASE}/crm/developments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userName ? { 'x-user-name': userName } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Error al registrar desarrollo');
+    return res.json();
+  },
+
+  async updateDevelopment(id: string, data: UpdateLeadStatusPayload, userName?: string): Promise<CrmLead> {
+    const res = await fetch(`${API_BASE}/crm/developments/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userName ? { 'x-user-name': userName } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Error al actualizar desarrollo');
+    return res.json();
+  },
+
+  async deleteDevelopment(id: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/crm/developments/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Error al eliminar desarrollo');
+    return res.json();
+  },
+
+  async createDevelopmentTrelloCard(id: string, data: { boardId?: string; listId?: string; customNotes?: string }, userName?: string): Promise<{ success: boolean; cardUrl: string; lead: CrmLead }> {
+    const res = await fetch(`${API_BASE}/crm/developments/${id}/trello-card`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userName ? { 'x-user-name': userName } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Error al crear tarjeta en Trello');
     return res.json();
   },
 };
