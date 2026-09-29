@@ -22,6 +22,7 @@ import {
   Lock,
   Globe,
   Monitor,
+  ExternalLink,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -52,10 +53,52 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({
   const [role, setRole] = useState<UserRole>('DEVELOPER');
   const [password, setPassword] = useState('dev123');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirectingAdmin, setIsRedirectingAdmin] = useState(false);
 
   // Audit logs state
   const [auditLogs, setAuditLogs] = useState<LoginAuditLog[]>([]);
   const [isLoadingAudit, setIsLoadingAudit] = useState(false);
+
+  const isAdmin = currentMember?.role === 'ADMIN';
+
+  const handleAdminRedirect = async () => {
+    if (!currentMember || currentMember.role !== 'ADMIN') {
+      alert('Acceso denegado: únicamente los administradores pueden acceder a este enlace.');
+      return;
+    }
+
+    try {
+      setIsRedirectingAdmin(true);
+      const data = await api.getAdminRedirectAccess(currentMember.id);
+
+      let targetUrl = data.redirectUrl;
+      if (!targetUrl) {
+        const frontendEnvUrl = (process.env.NEXT_PUBLIC_ADMIN_REDIRECT_URL || '').trim();
+        if (frontendEnvUrl) {
+          let normalizedUrl = frontendEnvUrl.replace(/\/+$/, '');
+          if (!normalizedUrl.endsWith('/acceso') && !normalizedUrl.includes('?')) {
+            normalizedUrl = `${normalizedUrl}/acceso`;
+          }
+          const separator = normalizedUrl.includes('?') ? '&' : '?';
+          targetUrl = `${normalizedUrl}${separator}token=${encodeURIComponent(data.token)}`;
+        }
+      }
+
+      if (!targetUrl) {
+        alert(
+          'Configura la URL de destino en las variables de entorno (ADMIN_EXTERNAL_REDIRECT_URL en backend/.env o NEXT_PUBLIC_ADMIN_REDIRECT_URL en frontend/.env).',
+        );
+        return;
+      }
+
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      console.error('Error al redirigir al sistema externo:', err);
+      alert(err.message || 'No se pudo generar el acceso al sistema externo.');
+    } finally {
+      setIsRedirectingAdmin(false);
+    }
+  };
 
   const loadAuditLogs = async () => {
     try {
@@ -185,17 +228,30 @@ export const TeamManagementView: React.FC<TeamManagementViewProps> = ({
       {/* SECCIÓN 1: LISTA DE COLABORADORES */}
       {activeSubTab === 'MEMBERS' && (
         <div className="space-y-6 animate-in fade-in">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
               Miembros Registrados
             </span>
-            <button
-              onClick={handleOpenAdd}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-all"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Agregar Colaborador</span>
-            </button>
+            <div className="flex items-center gap-2.5">
+              {isAdmin && (
+                <button
+                  onClick={handleAdminRedirect}
+                  disabled={isRedirectingAdmin}
+                  title="Redirigir al sistema externo con token de acceso Admin"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>{isRedirectingAdmin ? 'Generando token...' : 'Acceso Sistema Externo (Admin)'}</span>
+                </button>
+              )}
+              <button
+                onClick={handleOpenAdd}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-sm transition-all"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Agregar Colaborador</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

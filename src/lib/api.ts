@@ -257,6 +257,19 @@ export const api = {
     return res.json();
   },
 
+  async getAdminRedirectAccess(userId: string): Promise<{ token: string; redirectUrl: string; user: any }> {
+    const res = await fetch(`${API_BASE}/auth/admin-redirect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.message || 'No autorizado para generar acceso externo de administrador');
+    }
+    return res.json();
+  },
+
   // --- Google Cloud (Drive & Sheets) ---
   async getGoogleStatus(): Promise<{
     serviceAccount?: { exists: boolean; clientEmail: string | null; projectId: string | null; error: string | null };
